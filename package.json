@@ -1,0 +1,35 @@
+{
+  "name": "pg-data-compare",
+  "version": "0.0.1",
+  "description": "utility to compare the content in databases",
+  "main": "host.js",
+  "scripts": {
+    "pretest": "node pre-test.js",
+    "test": "./node_modules/mocha/bin/mocha test",
+    "start": "node ./host.js",
+    "postinstall": "npm run post",
+    "post": "node post-install.js"
+  },
+  "author": "scottjustin5000",
+  "license": "ISC",
+  "engines": {
+    "node": "0.12.7",
+    "npm": "2.11.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scottjustin5000/pg-data-compare"
+  },
+  "dependencies": {
+    "bluebird": "^2.9.34",
+    "dotenv": "^1.2.0",
+    "lodash": "^4.11.2",
+    "nodemon": "^1.3.8",
+    "pg": "^4.4.0",
+    "pg-hstore": "^2.3.2"
+  },
+  "devDependencies": {
+    "mocha": "^2.2.5",
+    "should": "^7.0.2"
+  }
+}
