@@ -50,7 +50,7 @@ function buildFind(tableName, keys) {
 
 function buildFilterClause(filters) {
 	if (!filters || !filters.length) {
-		return;
+		return '';
 	}
 	var filterClause = _.map(filters, function(filter) {
 		return filter.key + ' = ' + filter.value;
@@ -65,15 +65,19 @@ function extractKeyValues(keys, object) {
 }
 
 function buildRemoteComparison(target, targetFilters, source, sourceFilters) {
-	var localQuery = 'SELECT row_to_json(' + target + ')::text AS a FROM ' + target + ' ' + buildFilterClause(targetFilters) || '';
-	var remoteQuery = 'SELECT row_to_json(' + source + ')::text AS b FROM ' + source + ' ' + buildFilterClause(sourceFilters) || '';
-	return localQuery + ' LEFT JOIN(SELECT r.* FROM dblink(' + process.env.PG_CONNECTION_SOURCE + ',' + remoteQuery + ') as r(b) AS z ON x.a = r.b WHERE z.b is null';
+
+	var localQuery = 'SELECT row_to_json(' + target.trim() + ')::text AS a FROM ' + target.trim() + ' ' + buildFilterClause(targetFilters) || '';
+	var remoteQuery = 'SELECT row_to_json(' + source.trim() + ')::text AS b FROM ' + source.trim() + ' ' + buildFilterClause(sourceFilters) || '';
+	return "SELECT * FROM ("+localQuery + ") x LEFT JOIN(SELECT r.* FROM dblink('" + process.env.PG_CONNECTION_SOURCE + "','" + remoteQuery + "') as r(b text)) AS z ON x.a = z.b WHERE z.b is null";
 }
 
 function compareRemote(compareRequest) {
 	var compare = buildRemoteComparison(compareRequest.target.table, compareRequest.target.filters, compareRequest.source.table, compareRequest.source.filters);
 	var getter = buildFind(compareRequest.sourceTable, compareRequest.primaryKeys);
 	return db.query(compare, undefined, process.env.PG_CONNECTION_TARGET).then(function(results) {
+		if(results.rowCount === 0){
+			return Promise.resolve('Tables Match!');
+		}
 		return Promise.map(results, function(result) {
 			var pkValues = extractKeyValues(compareRequest.source.primaryKeys, result);
 			return db.query(getter, pkValues, process.env.PG_CONNECTION_SOURCE).then(function(source) {

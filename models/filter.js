@@ -4,4 +4,4 @@ function Filter(key, value){
 	self.value = value;
 	return self;
 }
-moduel.exports = Filter;
+module.exports = Filter;
