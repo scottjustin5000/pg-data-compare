@@ -31,11 +31,13 @@ function extractFilters(filterString) {
 }
 
 function compare(args) {
+	var isRemote = Object.keys(args)[0].trim() === 'r';
 	var filters = extractFilters(args.f);
 	var primaryKeys = args.p.split(',');
 	var target = new Models.CompareMeta(args.t, primaryKeys, filters);
 	var source = new Models.CompareMeta(args.t, primaryKeys, filters);
-	var request = new Models.CompareRequest(target,source);
+	var request = new Models.CompareRequest(target,source, isRemote);
+	return Promise.resolve();
 	return dataComparer.compareRemote(request).then(function(response){
 		console.log(response);
 	});
@@ -83,8 +85,3 @@ process.on('SIGINT', function() {
 	console.log('shutting down');
 	process.exit();
 });
-
-// select row_to_json(foo)::text AS s from foo 
-// SELECT * FROM ( SELECT "TableA"::text AS a FROM "Test"."TableA" ) x
-// LEFT JOIN (SELECT "TableB"::text AS a FROM "Test"."TableB" ) z ON x.a = z.a
-// WHERE z.a is null

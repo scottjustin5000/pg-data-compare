@@ -25,7 +25,7 @@ describe('test data comparison utility', function() {
 
 		it('should not build filter clause', function(done) {
 			var filterClause = dataComparer.buildFilterClause([]); 
-			(filterClause === undefined).should.be.true();
+			(filterClause === '').should.be.true();
 			done();
 		});
 	});
@@ -79,5 +79,4 @@ describe('test data comparison utility', function() {
 			done();
 		});
 	});
-
 });

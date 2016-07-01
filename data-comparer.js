@@ -64,15 +64,15 @@ function extractKeyValues(keys, object) {
 	});
 }
 
-function buildRemoteComparison(target, targetFilters, source, sourceFilters) {
-
-	var localQuery = 'SELECT row_to_json(' + target.trim() + ')::text AS a FROM ' + target.trim() + ' ' + buildFilterClause(targetFilters) || '';
-	var remoteQuery = 'SELECT row_to_json(' + source.trim() + ')::text AS b FROM ' + source.trim() + ' ' + buildFilterClause(sourceFilters) || '';
-	return "SELECT * FROM ("+localQuery + ") x LEFT JOIN(SELECT r.* FROM dblink('" + process.env.PG_CONNECTION_SOURCE + "','" + remoteQuery + "') as r(b text)) AS z ON x.a = z.b WHERE z.b is null";
+function buildComparison(compareRequest) {
+	var localQuery = 'SELECT row_to_json(' + compareRequest.target.table.trim() + ')::text AS a FROM ' + compareRequest.target.table.trim() + ' ' + buildFilterClause(compareRequest.target.filters) || '';
+	var remoteQuery = 'SELECT row_to_json(' + compareRequest.source.table.trim() + ')::text AS b FROM ' + compareRequest.source.table.trim() + ' ' + buildFilterClause(compareRequest.source.filters) || '';
+	return compareRequest.isRemote ? "SELECT * FROM ("+localQuery + ") x LEFT JOIN(SELECT r.* FROM dblink('" + process.env.PG_CONNECTION_SOURCE + "','" + remoteQuery + "') as r(b text)) AS z ON x.a = z.b WHERE z.b is null"
+	: "SELECT * FROM ("+localQuery + ") x LEFT JOIN (SELECT "+remoteQuery + ") z ON x.a = z.b WHERE z.b is null";
 }
 
-function compareRemote(compareRequest) {
-	var compare = buildRemoteComparison(compareRequest.target.table, compareRequest.target.filters, compareRequest.source.table, compareRequest.source.filters);
+function compare(compareRequest) {
+	var compare = buildComparison(compareRequest);
 	var getter = buildFind(compareRequest.sourceTable, compareRequest.primaryKeys);
 	return db.query(compare, undefined, process.env.PG_CONNECTION_TARGET).then(function(results) {
 		if(results.rowCount === 0){
@@ -95,12 +95,7 @@ function compareRemote(compareRequest) {
 	});
 }
 
-function compare(compareRequest) {
-
-}
-
 module.exports = {
-	compareRemote: compareRemote,
 	compare: compare,
 	findDeltas: findDeltas,
 	buildFilterClause: buildFilterClause,
