@@ -37,8 +37,7 @@ function compare(args) {
 	var target = new Models.CompareMeta(args.t, primaryKeys, filters);
 	var source = new Models.CompareMeta(args.t, primaryKeys, filters);
 	var request = new Models.CompareRequest(target,source, isRemote);
-	return Promise.resolve();
-	return dataComparer.compareRemote(request).then(function(response){
+	return dataComparer.compare(request).then(function(response){
 		console.log(response);
 	});
 }

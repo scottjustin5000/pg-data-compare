@@ -1,10 +1,12 @@
 var _ = require('lodash');
+var Promise = require('bluebird');
 var db = require('./db');
 
 function findDeltas(source, target) {
 	var deltas = [];
 	var aProps = Object.getOwnPropertyNames(source);
 	var bProps = Object.getOwnPropertyNames(target);
+
 	if (aProps.length != bProps.length) {
 		deltas.push({
 			'property': 'length',
@@ -40,7 +42,7 @@ function findDeltas(source, target) {
 function buildFind(tableName, keys) {
 	var base = 'SELECT row_to_json(' + tableName + ')::text a FROM ' + tableName + ' ';
 	if (keys && keys.length) {
-		base + ' where ';
+		base += ' where ';
 	}
 	var keyString = _.map(keys, function(key, index) {
 		return key + ' = ' + '$' + (index + 1);
@@ -68,25 +70,26 @@ function buildComparison(compareRequest) {
 	var localQuery = 'SELECT row_to_json(' + compareRequest.target.table.trim() + ')::text AS a FROM ' + compareRequest.target.table.trim() + ' ' + buildFilterClause(compareRequest.target.filters) || '';
 	var remoteQuery = 'SELECT row_to_json(' + compareRequest.source.table.trim() + ')::text AS b FROM ' + compareRequest.source.table.trim() + ' ' + buildFilterClause(compareRequest.source.filters) || '';
 	return compareRequest.isRemote ? "SELECT * FROM ("+localQuery + ") x LEFT JOIN(SELECT r.* FROM dblink('" + process.env.PG_CONNECTION_SOURCE + "','" + remoteQuery + "') as r(b text)) AS z ON x.a = z.b WHERE z.b is null"
-	: "SELECT * FROM ("+localQuery + ") x LEFT JOIN (SELECT "+remoteQuery + ") z ON x.a = z.b WHERE z.b is null";
+	: "SELECT * FROM ("+localQuery + ") x LEFT JOIN ("+remoteQuery + ") z ON x.a = z.b WHERE z.b is null";
 }
 
 function compare(compareRequest) {
 	var compare = buildComparison(compareRequest);
-	var getter = buildFind(compareRequest.sourceTable, compareRequest.primaryKeys);
+	var getter = buildFind(compareRequest.source.table, compareRequest.source.primaryKeys);
 	return db.query(compare, undefined, process.env.PG_CONNECTION_TARGET).then(function(results) {
 		if(results.rowCount === 0){
 			return Promise.resolve('Tables Match!');
 		}
-		return Promise.map(results, function(result) {
-			var pkValues = extractKeyValues(compareRequest.source.primaryKeys, result);
+		return Promise.map(results.rows, function(row) {
+			var comp = JSON.parse(row.a);
+			var pkValues = extractKeyValues(compareRequest.source.primaryKeys, comp);
 			return db.query(getter, pkValues, process.env.PG_CONNECTION_SOURCE).then(function(source) {
-				var item = source.rows[0];
+				var item = JSON.parse(source.rows[0].a);
 				var obj = {};
 				_.forEach(compareRequest.source.primaryKeys, function(key) {
-					obj[key] = result[key];
+					obj[key] = item[key];
 				});
-				obj.deltas = findDeltas(mapped, result);
+				obj.deltas = findDeltas(comp, item);
 				return obj;
 			});
 		});
